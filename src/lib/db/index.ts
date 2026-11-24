@@ -84,7 +84,13 @@ export async function getDb(): Promise<Db> {
   if (!local || local.client !== client) local = { client, db: await makeDb(client) };
   const db = local.db;
 
-  const target = process.env.NODE_ENV === "production" ? -1 : migrationCount();
+  // Production with a real PostgreSQL: migrations run once, before the build (`npm run db:migrate`,
+  // called by `vercel-build`). Running them from every build worker / serverless instance races.
+  // DB_AUTO_MIGRATE=1 (set by that script) or the embedded PGlite still migrate here.
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd && client.kind === "pg" && process.env.DB_AUTO_MIGRATE !== "1") return db;
+
+  const target = isProd ? -1 : migrationCount();
   if (g.__gremuMigrated === undefined || (target !== -1 && target !== g.__gremuMigrated)) {
     g.__gremuMigrating ??= migrate(db, client)
       .then(() => void (g.__gremuMigrated = target))

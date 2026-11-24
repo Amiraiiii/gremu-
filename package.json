@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm test",
-    "catalog:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/catalog-import.ts"
+    "catalog:import": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/catalog-import.ts",
+    "db:migrate": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/db-migrate.ts",
+    "vercel-build": "npm run db:migrate && next build"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
