@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { rejectNonJson } from "@/lib/http";
 import { inquirySchema } from "@/features/inquiries/schema";
 import { submitInquiry } from "@/features/inquiries/service";
-import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { clientKey, limit } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/auth/user";
 
 // Idempotency: the client sends one key per form submission; repeats return the first result.
@@ -12,9 +12,9 @@ const IDEMPOTENCY_TTL = 10 * 60 * 1000;
 export async function POST(req: Request) {
   const bad = rejectNonJson(req);
   if (bad) return bad;
-  const limit = rateLimit(`inq:${clientKey(req)}`, 5, 10 * 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429, headers: { "Retry-After": String(limit.retryAfter) } });
+  const rl = await limit(`inq:${clientKey(req)}`, 5, 10 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   }
 
   let body: unknown;

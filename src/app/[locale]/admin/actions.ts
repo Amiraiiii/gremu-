@@ -6,31 +6,33 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { checkCredentials, endSession, getAdminSession, startSession, staffFor } from "@/lib/auth/admin";
 import { endUserSession } from "@/lib/auth/user";
-import { rateLimit } from "@/lib/rate-limit";
+import { ipFromHeaders } from "@/lib/rate-limit";
+import { checkLoginAllowed, ipTag, recordLoginFailure, recordLoginSuccess } from "@/lib/auth/login-guard";
 import { audit, changeOrderStatus, isStatus } from "@/features/orders/admin";
 import { isInquiryStatus, resendInquiryEmail, retryFailedEmails, setInquiryStatus } from "@/features/inquiries/service";
 
 export type LoginState = { error?: "invalid" | "rate_limited" | "not_configured" };
 
-async function ip() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
-}
-
 export async function loginAction(_prev: LoginState, form: FormData): Promise<LoginState> {
   const locale = String(form.get("locale")) === "uz" ? "uz" : "ru";
   if (!process.env.ADMIN_PASSWORD_HASH) return { error: "not_configured" };
-  const limit = rateLimit(`admin-login:${await ip()}`, 5, 15 * 60 * 1000);
-  if (!limit.ok) return { error: "rate_limited" };
-
+  const ip = ipFromHeaders(await headers());
   const username = String(form.get("username") ?? "").trim().slice(0, 64);
   const password = String(form.get("password") ?? "").slice(0, 200);
+
+  const allowed = await checkLoginAllowed(ip, username);
+  if (!allowed.ok) {
+    await audit(username || "unknown", "admin.login_blocked", "session", null, { ip: ipTag(ip) }).catch(() => undefined);
+    return { error: "rate_limited" };
+  }
   if (!username || !password || !checkCredentials(username, password)) {
-    await audit(username || "unknown", "admin.login_failed", "session", null).catch(() => undefined);
+    await audit(username || "unknown", "admin.login_failed", "session", null, { ip: ipTag(ip) }).catch(() => undefined);
+    await recordLoginFailure(username);
     return { error: "invalid" };
   }
+  await recordLoginSuccess(username);
   await startSession(username);
-  await audit(username, "admin.login", "session", null).catch(() => undefined);
+  await audit(username, "admin.login", "session", null, { ip: ipTag(ip) }).catch(() => undefined);
   redirect(`/${locale}/admin`);
 }
 

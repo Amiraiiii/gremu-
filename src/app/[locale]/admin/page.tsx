@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth/admin";
+import { adminHashIsLegacy, requireAdmin } from "@/lib/auth/admin";
 import { ORDER_STATUSES, listOrders } from "@/features/orders/admin";
 import { AdminShell, PAYMENT_LABEL, STATUS_LABEL, StatusBadge } from "@/components/admin/AdminShell";
 import { formatUZS } from "@/lib/format";
@@ -38,6 +38,11 @@ export default async function AdminOrders({ params, searchParams }: Props) {
 
   return (
     <AdminShell locale={locale} user={session.sub} role={session.role}>
+      {session.role === "admin" && adminHashIsLegacy() && (
+        <p role="note" className="mb-6 rounded-xl bg-warn/12 px-4 py-3 text-sm text-ink-2 ring-1 ring-warn/30">
+          Пароль владельца хранится в устаревшем формате хеша. Сгенерируйте новый: <code className="mono-num">npm run admin:hash -- &quot;длинный-пароль&quot;</code> и замените ADMIN_PASSWORD_HASH на сервере.
+        </p>
+      )}
       {one(sp.denied) && (
         <p role="alert" className="mb-6 rounded-xl bg-warn/12 px-4 py-3 text-sm text-ink-2 ring-1 ring-warn/30">Этот раздел доступен только администратору.</p>
       )}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { rejectNonJson } from "@/lib/http";
 import { z } from "zod";
 import { AssistantError, chat, geminiConfigured } from "@/features/assistant/gemini";
-import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { clientKey, limit } from "@/lib/rate-limit";
 
 /**
  * POST /api/assistant/chat — the browser keeps the conversation and sends the last turns.
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
   if (!geminiConfigured()) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503 });
 
   const key = clientKey(req);
-  const minute = rateLimit(`ai-m:${key}`, 6, 60 * 1000);
-  const hour = rateLimit(`ai-h:${key}`, 40, 60 * 60 * 1000);
+  const minute = await limit(`ai-m:${key}`, 6, 60 * 1000);
+  const hour = await limit(`ai-h:${key}`, 40, 60 * 60 * 1000);
   if (!minute.ok || !hour.ok) {
     const retry = Math.max(minute.retryAfter, hour.retryAfter);
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429, headers: { "Retry-After": String(retry) } });

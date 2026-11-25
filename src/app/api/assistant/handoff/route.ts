@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { rejectNonJson } from "@/lib/http";
 import { z } from "zod";
 import { submitInquiry } from "@/features/inquiries/service";
-import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { clientKey, limit } from "@/lib/rate-limit";
 
 /**
  * "Contact a manager" from the assistant: saves an inquiry (source ai_handoff) with the
@@ -33,7 +33,7 @@ const schema = z
 export async function POST(req: Request) {
   const bad = rejectNonJson(req);
   if (bad) return bad;
-  if (!rateLimit(`ai-handoff:${clientKey(req)}`, 5, 10 * 60 * 1000).ok) {
+  if (!(await limit(`ai-handoff:${clientKey(req)}`, 5, 10 * 60 * 1000)).ok) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
   const parsed = schema.safeParse(await req.json().catch(() => null));

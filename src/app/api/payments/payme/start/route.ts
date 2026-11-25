@@ -6,7 +6,7 @@ import { appUrl } from "@/lib/auth/google";
 import { guestToken, tokenMatches } from "@/features/orders/service";
 import { isPayable } from "@/features/payments";
 import { payme } from "@/features/payments/payme/config";
-import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { clientKey, limit } from "@/lib/rate-limit";
 
 /**
  * POST (form) → 303 to Payme's hosted checkout. Only the order's owner may start it:
@@ -16,7 +16,7 @@ import { clientKey, rateLimit } from "@/lib/rate-limit";
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   if (origin && origin !== req.nextUrl.origin) return NextResponse.json({ ok: false }, { status: 403 });
-  if (!rateLimit(`pay:${clientKey(req)}`, 20, 10 * 60 * 1000).ok) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+  if (!(await limit(`pay:${clientKey(req)}`, 20, 10 * 60 * 1000)).ok) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   const form = await req.formData().catch(() => null);
   const locale = form?.get("locale") === "uz" ? "uz" : "ru";

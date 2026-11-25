@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { rejectNonJson } from "@/lib/http";
 import { checkoutSchema, createOrder } from "@/features/orders/service";
-import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { clientKey, limit } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/auth/user";
 import { availablePaymentMethods } from "@/features/payments";
 
 export async function POST(req: Request) {
   const bad = rejectNonJson(req);
   if (bad) return bad;
-  const limit = rateLimit(`order:${clientKey(req)}`, 10, 10 * 60 * 1000);
-  if (!limit.ok) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
+  const rl = await limit(`order:${clientKey(req)}`, 10, 10 * 60 * 1000);
+  if (!rl.ok) return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
 
   let body: unknown;
   try {

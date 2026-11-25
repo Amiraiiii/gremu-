@@ -10,7 +10,8 @@ import { getDb, schema } from "@/lib/db";
  * Customer sessions. The cookie carries a random 256-bit token; the DB keeps only its sha256,
  * so a database leak does not hand out live sessions. HttpOnly, SameSite=Lax, Secure in production.
  */
-export const USER_COOKIE = "gremu_session";
+import { USER_COOKIE } from "./cookie-names";
+export { USER_COOKIE };
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");

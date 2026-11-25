@@ -14,7 +14,8 @@ import { getCurrentUser } from "./user";
  * staff — orders, inquiries, products (prices, stock, publishing, fitments), CSV export.
  * admin — everything, plus categories, brands, deleting products, CSV import and the audit log.
  */
-export const ADMIN_COOKIE = "gremu_admin";
+import { ADMIN_COOKIE } from "./cookie-names";
+export { ADMIN_COOKIE };
 const SESSION_TTL_S = 8 * 60 * 60;
 
 export type StaffRole = "admin" | "staff";
@@ -48,13 +49,32 @@ export function adminConfigured(): boolean {
   return Boolean(process.env.ADMIN_PASSWORD_HASH?.trim());
 }
 
-/** Verify "scrypt.<salt>.<hash>" in constant time. */
+/**
+ * scrypt cost per hash scheme:
+ *  - "scrypt"   — legacy, Node defaults (N=2^14, r=8, p=1); still accepted.
+ *  - "scrypt17" — OWASP-recommended N=2^17, r=8, p=1 (~8× costlier to brute-force). New hashes.
+ */
+const SCRYPT_PARAMS: Record<string, { N: number; r: number; p: number }> = {
+  scrypt: { N: 2 ** 14, r: 8, p: 1 },
+  scrypt17: { N: 2 ** 17, r: 8, p: 1 },
+};
+
+/** Verify "<scheme>.<salt>.<hash>" in constant time. */
 export function verifyPassword(password: string, stored: string): boolean {
   const [scheme, salt, hash] = stored.split(/[.$]/);
-  if (scheme !== "scrypt" || !salt || !hash) return false;
+  const params = SCRYPT_PARAMS[scheme];
+  if (!params || !salt || !hash) return false;
   const expected = Buffer.from(hash, "base64url");
-  const actual = scryptSync(password, Buffer.from(salt, "base64url"), expected.length);
+  const actual = scryptSync(password, Buffer.from(salt, "base64url"), expected.length, {
+    ...params,
+    maxmem: 256 * params.N * params.r, // 2× the 128·N·r working set
+  });
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+/** True when the configured hash uses the weaker legacy cost (shown as a hint in the admin). */
+export function adminHashIsLegacy(): boolean {
+  return (process.env.ADMIN_PASSWORD_HASH ?? "").startsWith("scrypt.");
 }
 
 export function checkCredentials(username: string, password: string): boolean {

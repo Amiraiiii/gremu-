@@ -285,3 +285,17 @@ export const productFitments = pgTable(
   },
   (t) => [index("fitments_product_idx").on(t.productId), index("fitments_vehicle_idx").on(t.make, t.model)],
 );
+
+/**
+ * Shared rate-limit counters (fixed window). Shared by every server instance, unlike the
+ * in-memory limiter — required on serverless hosting. Keys are sha256 hashes (no raw IPs stored).
+ */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull(),
+  },
+  (t) => [index("rate_limits_window_idx").on(t.windowStart)],
+);

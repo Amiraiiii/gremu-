@@ -12,7 +12,8 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-export const OAUTH_COOKIE = "gremu_oauth";
+import { OAUTH_COOKIE } from "./cookie-names";
+export { OAUTH_COOKIE };
 const FLOW_TTL_S = 10 * 60;
 
 export function googleConfigured(): boolean {
