@@ -159,7 +159,7 @@ export function SortSelect({ q, c, basePath }: { q: CatalogQuery; c: C; basePath
           const form = e.currentTarget.form!;
           start(() => router.push(urlFrom(form, basePath), { scroll: false }));
         }}
-        className={`field h-10 min-h-10 w-auto py-0 pr-8 text-sm ${pending ? "opacity-60" : ""}`}
+        className={`field h-10 min-h-10 w-auto min-w-[13.5rem] py-0 text-sm ${pending ? "opacity-60" : ""}`}
       >
         {(Object.keys(c.sorts) as (keyof C["sorts"])[]).map((k) => (
           <option key={k} value={k}>{c.sorts[k]}</option>
