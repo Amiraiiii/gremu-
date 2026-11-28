@@ -1,4 +1,4 @@
-import type { CatalogQuery, Make, PartType, SortKey } from "./types";
+import type { CatalogQuery, Make, SortKey } from "./types";
 
 type Params = Record<string, string | string[] | undefined>;
 
@@ -10,13 +10,11 @@ const int = (v: string | undefined, min: number, max: number) => {
 };
 
 const MAKES: Make[] = ["hyundai", "kia"];
-const TYPES: PartType[] = ["original", "aftermarket", "used"];
 const SORTS: SortKey[] = ["relevance", "price_asc", "price_desc", "newest"];
 
 /** Parse and validate URL search params at the boundary — unknown values are dropped. */
 export function parseCatalogQuery(sp: Params): CatalogQuery {
   const make = one(sp.make)?.toLowerCase() as Make | undefined;
-  const partType = one(sp.type) as PartType | undefined;
   const sort = one(sp.sort) as SortKey | undefined;
   const q = one(sp.q)?.slice(0, 80);
   return {
@@ -25,7 +23,6 @@ export function parseCatalogQuery(sp: Params): CatalogQuery {
     model: one(sp.model)?.slice(0, 40),
     year: int(one(sp.year), 1990, 2100),
     category: one(sp.category)?.slice(0, 40),
-    partType: partType && TYPES.includes(partType) ? partType : undefined,
     availability: one(sp.stock) === "1" ? "in_stock" : undefined,
     minPrice: int(one(sp.min), 0, 1_000_000_000),
     maxPrice: int(one(sp.max), 0, 1_000_000_000),
@@ -42,7 +39,6 @@ export function toSearchParams(q: CatalogQuery, override: Partial<Record<string,
   set("model", q.model);
   set("year", q.year);
   set("category", q.category);
-  set("type", q.partType);
   if (q.availability) p.set("stock", "1");
   set("min", q.minPrice);
   set("max", q.maxPrice);

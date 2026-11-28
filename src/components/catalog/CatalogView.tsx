@@ -3,8 +3,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/ru";
 import { toSearchParams } from "@/features/catalog/query";
 import type { CatalogQuery, CatalogResult } from "@/features/catalog/types";
-import { DEMO_MODELS } from "@/components/home/vehicle-data";
-import { YEARS } from "@/components/home/vehicle-data";
+import { FilterPanel, SortSelect } from "./CatalogControls";
 import { ArrowRight } from "@/components/ui/icons";
 import { ProductCard } from "./ProductCard";
 
@@ -59,125 +58,49 @@ export function PageHero({
   );
 }
 
-function Filters({ q, t, basePath, fixedCategory }: { q: CatalogQuery; t: T; basePath: string; fixedCategory?: string }) {
+/** Chips for the filters in use; each one removes itself, plus "reset all". */
+function ActiveFilters({ q, t, basePath, fixedCategory }: { q: CatalogQuery; t: T; basePath: string; fixedCategory?: string }) {
   const c = t.catalog;
-  const label = "mb-1.5 block text-xs font-medium tracking-wider text-muted uppercase";
+  const without = (keys: string[]) => {
+    const over: Record<string, undefined> = { page: undefined };
+    for (const k of keys) over[k] = undefined;
+    const qs = toSearchParams(q, over);
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
+  const chips: { label: string; href: string }[] = [];
+  if (q.make) chips.push({ label: q.make === "kia" ? "Kia" : "Hyundai", href: without(["make", "model"]) });
+  if (q.model) chips.push({ label: q.model, href: without(["model"]) });
+  if (q.year) chips.push({ label: String(q.year), href: without(["year"]) });
+  if (q.category && !fixedCategory) {
+    chips.push({ label: t.categories.items.find((x) => x.slug === q.category)?.name ?? q.category, href: without(["category"]) });
+  }
+  if (q.minPrice != null || q.maxPrice != null) {
+    const range = [q.minPrice != null ? `${c.from} ${q.minPrice.toLocaleString("ru-RU")}` : "", q.maxPrice != null ? `${c.to} ${q.maxPrice.toLocaleString("ru-RU")}` : ""].filter(Boolean).join(" ");
+    chips.push({ label: range, href: without(["min", "max"]) });
+  }
+  if (q.availability) chips.push({ label: c.inStock, href: without(["stock"]) });
+  if (!chips.length) return null;
   return (
-    <form action={basePath} method="get" className="grid gap-5">
-      {q.q && <input type="hidden" name="q" value={q.q} />}
-      <fieldset>
-        <legend className={label}>{c.make}</legend>
-        <div className="grid grid-cols-3 gap-1.5">
-          {[
-            { v: "", l: c.anyMake },
-            { v: "hyundai", l: "Hyundai" },
-            { v: "kia", l: "Kia" },
-          ].map((o) => (
-            <label
-              key={o.v}
-              className="flex h-11 cursor-pointer items-center justify-center rounded-full text-sm ring-1 ring-line transition-colors has-[:checked]:bg-petrol-900 has-[:checked]:text-cream has-[:checked]:ring-petrol-900 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus"
-            >
-              <input type="radio" name="make" value={o.v} defaultChecked={(q.make ?? "") === o.v} className="sr-only" />
-              {o.l}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <div>
-        <label htmlFor="f-model" className={label}>
-          {c.model}
-        </label>
-        <select id="f-model" name="model" defaultValue={q.model ?? ""} className="field">
-          <option value="">{c.anyModel}</option>
-          <optgroup label="Hyundai">
-            {DEMO_MODELS.hyundai.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Kia">
-            {DEMO_MODELS.kia.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
-      <div>
-        <label htmlFor="f-year" className={label}>
-          {c.year}
-        </label>
-        <select id="f-year" name="year" defaultValue={q.year ?? ""} className="field">
-          <option value="">{c.anyYear}</option>
-          {YEARS.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
-      {!fixedCategory && (
-        <div>
-          <label htmlFor="f-cat" className={label}>
-            {c.category}
-          </label>
-          <select id="f-cat" name="category" defaultValue={q.category ?? ""} className="field">
-            <option value="">{c.allCategories}</option>
-            {t.categories.items.map((cat) => (
-              <option key={cat.slug} value={cat.slug}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div>
-        <label htmlFor="f-type" className={label}>
-          {c.partType}
-        </label>
-        <select id="f-type" name="type" defaultValue={q.partType ?? ""} className="field">
-          <option value="">{c.anyType}</option>
-          {(Object.keys(c.types) as (keyof typeof c.types)[]).map((k) => (
-            <option key={k} value={k}>
-              {c.types[k]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <fieldset>
-        <legend className={label}>{c.price}</legend>
-        <div className="grid grid-cols-2 gap-2">
-          <input name="min" inputMode="numeric" pattern="[0-9]*" placeholder={c.from} aria-label={`${c.price} ${c.from}`} defaultValue={q.minPrice ?? ""} className="field" />
-          <input name="max" inputMode="numeric" pattern="[0-9]*" placeholder={c.to} aria-label={`${c.price} ${c.to}`} defaultValue={q.maxPrice ?? ""} className="field" />
-        </div>
-      </fieldset>
-      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
-        <input type="checkbox" name="stock" value="1" defaultChecked={q.availability === "in_stock"} className="size-5 accent-[var(--petrol-700)]" />
-        {c.inStock}
-      </label>
-      <div>
-        <label htmlFor="f-sort" className={label}>
-          {c.sort}
-        </label>
-        <select id="f-sort" name="sort" defaultValue={q.sort ?? "relevance"} className="field">
-          {(Object.keys(c.sorts) as (keyof typeof c.sorts)[]).map((k) => (
-            <option key={k} value={k}>
-              {c.sorts[k]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex gap-2">
-        <button type="submit" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-petrol-900 font-medium text-cream transition-colors hover:bg-petrol-700">
-          {c.apply}
-        </button>
-        <Link href={basePath} className="inline-flex h-12 items-center justify-center rounded-full px-5 text-sm text-ink-2 ring-1 ring-line hover:bg-paper">
+    <ul className="mb-5 flex flex-wrap items-center gap-2" aria-label={c.filters}>
+      {chips.map((chip) => (
+        <li key={chip.label}>
+          <Link
+            href={chip.href}
+            scroll={false}
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-paper pr-2 pl-3.5 text-sm text-ink ring-1 ring-line transition-colors hover:bg-paper-2"
+          >
+            {chip.label}
+            <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-paper-2 text-xs text-muted">×</span>
+            <span className="sr-only">— {c.reset}</span>
+          </Link>
+        </li>
+      ))}
+      <li>
+        <Link href={without(["make", "model", "year", "category", "min", "max", "stock"])} scroll={false} className="inline-flex h-9 items-center px-2 text-sm font-medium text-petrol-700 underline-offset-4 hover:underline">
           {c.reset}
         </Link>
-      </div>
-    </form>
+      </li>
+    </ul>
   );
 }
 
@@ -256,15 +179,19 @@ export function CatalogListing({
                 </span>
               </summary>
               <div className="mt-4">
-                <Filters q={q} t={t} basePath={basePath} fixedCategory={fixedCategory} />
+                <FilterPanel q={q} c={t.catalog} categories={t.categories.items} basePath={basePath} fixedCategory={fixedCategory} />
               </div>
             </details>
           </aside>
         )}
         <div>
-          <p className="mb-5 text-sm text-muted" aria-live="polite">
-            {t.catalog.found}: <span className="font-medium text-ink">{result.total}</span>
-          </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted" aria-live="polite">
+              {t.catalog.found}: <span className="font-medium text-ink">{result.total}</span>
+            </p>
+            {result.total > 1 && <SortSelect q={q} c={t.catalog} basePath={basePath} />}
+          </div>
+          {!hideFilters && <ActiveFilters q={q} t={t} basePath={basePath} fixedCategory={fixedCategory} />}
           {result.items.length === 0 ? (
             <EmptyState locale={locale} t={t.catalog} />
           ) : (
